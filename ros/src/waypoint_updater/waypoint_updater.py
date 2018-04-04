@@ -84,7 +84,7 @@ class WaypointUpdater(object):
                 if start_index is not None:
                     end_index = start_index + LOOKAHEAD_WPS
                     lane_waypoints = self.base_waypoints[start_index:end_index]
-                    if self.nearest_light and self.nearest_light <= end_index:
+                    if self.nearest_light and self.nearest_light >= start_index and self.nearest_light <= end_index:
                         lane_waypoints = self.decelerate(lane_waypoints, start_index)
                     lane = Lane()
                     lane.waypoints = lane_waypoints
@@ -95,7 +95,7 @@ class WaypointUpdater(object):
         stop_index = self.nearest_light - start_index - 2 # So that car doesn't stop on line
         processed_waypoints = []
         deceleration_rate = None
-        speed = self.vehicle_speed
+        speed = self.vehicle_velocity
         for i, waypoint in enumerate(waypoints):
             p = Waypoint()
             p.pose = waypoint.pose
@@ -108,7 +108,7 @@ class WaypointUpdater(object):
                 target_speed = deceleration_rate * distance
                 if target_speed <= 1:
                     target_speed = 0
-                target_speed = min(target_speed, get_waypoint_velocity(waypoint))
+                target_speed = min(target_speed, self.get_waypoint_velocity(waypoint))
             p.twist.twist.linear.x = target_speed
             processed_waypoints.append(p)
         return processed_waypoints
