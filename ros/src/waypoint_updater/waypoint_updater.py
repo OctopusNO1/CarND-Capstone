@@ -3,8 +3,9 @@
 import rospy
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
-from tf.transformations import euler_from_quaternion
 import math
+import numpy as np
+from scipy.spatial import KDTree
 
 '''
 This node will publish waypoints from the car's current position to some `x` distance ahead.
@@ -21,7 +22,7 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
-LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
+LOOKAHEAD_WPS = 100 # Number of waypoints we will publish. You can change this number
 
 class WaypointUpdater(object):
 
@@ -37,15 +38,25 @@ class WaypointUpdater(object):
 
         # TODO: Add other member variables you need below
         self.vehicle = None
-        self.waypoints = None
+        self.base_waypoints = None
+        self.waypoints_2d = None
+        self.waypoints_tree = None
 
-        self.looper()
+        self.loop()
 
     def pose_cb(self, msg):
         self.vehicle = msg
 
+    # Extracts the x and y coordinates of a waypoint
+    def waypoint_xy(self, waypoint):
+        position = waypoint.pose.pose.position
+        return [position.x, position.y]
+
     def waypoints_cb(self, waypoints):
-        self.waypoints = waypoints.waypoints
+        self.base_waypoints = waypoints.waypoints
+        if not self.waypoints_2d:
+            self.waypoints_2d = [self.waypoint_xy(waypoint) for waypoint in waypoints.waypoints]
+            self.waypoints_tree = KDTree(self.waypoints_2d)
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
@@ -56,10 +67,10 @@ class WaypointUpdater(object):
         pass
 
     # This is our main loop which is run at a set interval
-    def looper(self):
-        rate = rospy.Rate(10)
+    def loop(self):
+        rate = rospy.Rate(50)
         while not rospy.is_shutdown():
-            if self.vehicle is not None and self.waypoints is not None:
+            if self.vehicle and self.waypoints_tree:
                 # If you turn around around in the simulator all the waypoint can end
                 # up behind the vehicle which will cause nearest_forward_waypoint to
                 # return None
@@ -71,12 +82,12 @@ class WaypointUpdater(object):
                     # following code doesn't work if you try to turn around since it
                     # will find the correct starting waypoint but select the waypoint
                     # behind you.
-                    if end_index > len(self.waypoints):
+                    if end_index > len(self.base_waypoints):
                         # Need to wrap to front of waypoint list
-                        end_index = end_index - len(self.waypoints)
-                        lane_waypoints = self.waypoints[start_index:] + self.waypoints[:end_index]
+                        end_index = end_index % len(self.base_waypoints)
+                        lane_waypoints = self.base_waypoints[start_index:] + self.base_waypoints[:end_index]
                     else:
-                        lane_waypoints = self.waypoints[start_index:end_index]
+                        lane_waypoints = self.base_waypoints[start_index:end_index]
                     lane = Lane()
                     lane.waypoints = lane_waypoints
                     self.final_waypoints_pub.publish(lane)
@@ -84,40 +95,22 @@ class WaypointUpdater(object):
 
     # Returns the index of the nearest waypoint ahead of the vehicle
     def nearest_forward_waypoint(self):
-        vehicle_x = self.vehicle.pose.position.x
-        vehicle_y = self.vehicle.pose.position.y
-        vehicle_orientation = self.vehicle.pose.orientation
-        quaternion = (
-            vehicle_orientation.x,
-            vehicle_orientation.y,
-            vehicle_orientation.z,
-            vehicle_orientation.w
-        )
-        vehicle_yaw = euler_from_quaternion(quaternion)[2]
+        vehicle = [self.vehicle.pose.position.x, self.vehicle.pose.position.y]
+        closest_index = self.waypoints_tree.query(vehicle, 1)[1]
 
-        # Waypoints converted to vehicle coordinates
-        waypoints_transformed = []
-        for waypoint in self.waypoints:
-            waypoint_x = waypoint.pose.pose.position.x
-            waypoint_y = waypoint.pose.pose.position.y
-            x_adj = waypoint_x - vehicle_x
-            y_adj = waypoint_y - vehicle_y
-            x_transformed = x_adj * math.cos(vehicle_yaw) + y_adj * math.sin(vehicle_yaw)
-            y_transformed = -x_adj * math.sin(vehicle_yaw) + y_adj * math.cos(vehicle_yaw)
-            waypoints_transformed.append((x_transformed, y_transformed))
+        closest_waypoint = np.array(self.waypoints_2d[closest_index])
+        previous_waypoint = np.array(self.waypoints_2d[closest_index - 1])
+        vehicle = np.array(vehicle)
 
-        # Find closest waypoint ahead of vehicle
-        min_distance = None
-        index = None
-        for i, waypoint in enumerate(waypoints_transformed):
-            x, y = waypoint
-            if x > 0:
-                distance = math.sqrt(x * x + y * y)
-                if min_distance is None or distance < min_distance:
-                    min_distance = distance
-                    index = i
+        waypoint_vector = closest_waypoint - previous_waypoint
+        vehicle_vector = vehicle - closest_waypoint
 
-        return index
+        val = np.dot(waypoint_vector, vehicle_vector)
+
+        if val > 0:
+            closest_index = (closest_index + 1) % len(self.waypoints_2d)
+
+        return closest_index
 
     def get_waypoint_velocity(self, waypoint):
         return waypoint.twist.twist.linear.x
