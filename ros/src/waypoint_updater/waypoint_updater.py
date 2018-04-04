@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 import rospy
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, TwistStamped
 from styx_msgs.msg import Lane, Waypoint
+from std_msgs.msg import Int32
 import math
 import numpy as np
 from scipy.spatial import KDTree
@@ -31,16 +32,19 @@ class WaypointUpdater(object):
 
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+        rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb)
 
-        # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
+        # TODO: Add a subscriber for /obstacle_waypoint
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
-        # TODO: Add other member variables you need below
         self.vehicle = None
         self.base_waypoints = None
         self.waypoints_2d = None
         self.waypoints_tree = None
+        self.nearest_light = None
+        self.vehicle_velocity = None # in m/s
 
         self.loop()
 
@@ -59,8 +63,10 @@ class WaypointUpdater(object):
             self.waypoints_tree = KDTree(self.waypoints_2d)
 
     def traffic_cb(self, msg):
-        # TODO: Callback for /traffic_waypoint message. Implement
-        pass
+        self.nearest_light = msg.data
+
+    def velocity_cb(self, velocity):
+        self.vehicle_velocity = velocity.twist.linear.x
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
@@ -70,28 +76,42 @@ class WaypointUpdater(object):
     def loop(self):
         rate = rospy.Rate(50)
         while not rospy.is_shutdown():
-            if self.vehicle and self.waypoints_tree:
+            if self.vehicle and self.waypoints_tree and self.vehicle_velocity:
                 # If you turn around around in the simulator all the waypoint can end
                 # up behind the vehicle which will cause nearest_forward_waypoint to
                 # return None
                 start_index = self.nearest_forward_waypoint()
                 if start_index is not None:
                     end_index = start_index + LOOKAHEAD_WPS
-                    lane_waypoints = []
-                    # For simplicity we can assume we will always drive forward. The
-                    # following code doesn't work if you try to turn around since it
-                    # will find the correct starting waypoint but select the waypoint
-                    # behind you.
-                    if end_index > len(self.base_waypoints):
-                        # Need to wrap to front of waypoint list
-                        end_index = end_index % len(self.base_waypoints)
-                        lane_waypoints = self.base_waypoints[start_index:] + self.base_waypoints[:end_index]
-                    else:
-                        lane_waypoints = self.base_waypoints[start_index:end_index]
+                    lane_waypoints = self.base_waypoints[start_index:end_index]
+                    if self.nearest_light and self.nearest_light <= end_index:
+                        lane_waypoints = self.decelerate(lane_waypoints, start_index)
                     lane = Lane()
                     lane.waypoints = lane_waypoints
                     self.final_waypoints_pub.publish(lane)
             rate.sleep()
+
+    def decelerate(self, waypoints, start_index):
+        stop_index = self.nearest_light - start_index - 2 # So that car doesn't stop on line
+        processed_waypoints = []
+        deceleration_rate = None
+        speed = self.vehicle_speed
+        for i, waypoint in enumerate(waypoints):
+            p = Waypoint()
+            p.pose = waypoint.pose
+            if i >= stop_index:
+                target_speed = 0
+            else:
+                distance = self.distance(waypoints, i, stop_index)
+                if not deceleration_rate:
+                    deceleration_rate = self.vehicle_velocity / distance
+                target_speed = deceleration_rate * distance
+                if target_speed <= 1:
+                    target_speed = 0
+                target_speed = min(target_speed, get_waypoint_velocity(waypoint))
+            p.twist.twist.linear.x = target_speed
+            processed_waypoints.append(p)
+        return processed_waypoints
 
     # Returns the index of the nearest waypoint ahead of the vehicle
     def nearest_forward_waypoint(self):
