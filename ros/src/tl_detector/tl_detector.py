@@ -10,6 +10,7 @@ from light_classification.tl_classifier import TLClassifier
 import tf
 import cv2
 import yaml
+import math
 
 STATE_COUNT_THRESHOLD = 3
 
@@ -100,7 +101,17 @@ class TLDetector(object):
             int: index of the closest waypoint in self.waypoints
 
         """
-		closest_idx = self.waypoint_tree.query([pose_x, pose_y], 1)[1]
+		#closest_idx = self.waypoint_tree.query([pose_x, pose_y], 1)[1]
+		closest_waypoint = 999999
+		closest_idx = -1
+		
+		for i in range(len(self.waypoints.waypoints)):
+			d_dist = math.sqrt(self.waypoints.waypoints[i].pose.pose.position.x - pose_x)**2 + ((self.waypoints.waypoints[i].pose.pose.position.x - pose_x)**2)
+			
+			if (d_dist < closest_waypoint):
+				closest_waypoint = d_dist
+				closest_idx = id
+            
 		return closest_idx
 
     def get_light_state(self, light):
@@ -133,7 +144,7 @@ class TLDetector(object):
 
         """
         closest_light = None
-	light_wp_idx = None
+		light_wp_idx = None
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
         if(self.pose):
@@ -151,8 +162,8 @@ class TLDetector(object):
 				closest_light = light
 				line_wp_idx = temp_wp_idx
         if closest_light:
-		state = self.get_light_state(closest_light)
-		return light_wp, state
+			state = self.get_light_state(closest_light)
+			return light_wp, state
         #self.waypoints = None
         return -1, TrafficLight.UNKNOWN
 
