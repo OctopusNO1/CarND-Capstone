@@ -103,6 +103,7 @@ class TLDetector(object):
 	#closest_idx = self.waypoint_tree.query([pose_x, pose_y], 1)[1]
 	closest_waypoint = 999999
 	closest_idx = -1
+	#search through waypoints
 	for i in range(len(self.waypoints.waypoints)):
 		d_dist = math.sqrt((self.waypoints.waypoints[i].pose.pose.position.x - pose_x)**2 + (self.waypoints.waypoints[i].pose.pose.position.y - pose_y)**2)
 		if (d_dist < closest_waypoint):
