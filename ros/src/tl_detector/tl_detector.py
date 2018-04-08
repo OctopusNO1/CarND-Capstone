@@ -139,7 +139,7 @@ class TLDetector(object):
 
         #Get classification
         return self.light_classifier.get_classification(cv_image)
-	# return light.state
+	    # return light.state
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
@@ -151,7 +151,7 @@ class TLDetector(object):
 
         """
         closest_light = None
-	light_wp_idx = None
+	    light_wp_idx = None
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
         if(self.pose):
@@ -171,7 +171,7 @@ class TLDetector(object):
 				closest_light = light
 				line_wp_idx = temp_wp_idx
         if closest_light:
-		state = self.get_light_state(closest_light)
+		    state = self.get_light_state(closest_light)
             #print("Light waypoint Index: ",line_wp_idx, "Traffic Light: ",state)
             return light_wp_idx, state
 
