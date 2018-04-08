@@ -11,6 +11,7 @@ import tf
 import cv2
 import yaml
 import math
+from scipy.spatial import KDTree
 
 STATE_COUNT_THRESHOLD = 3
 
@@ -23,7 +24,7 @@ class TLDetector(object):
         self.waypoints = None
         self.camera_image = None
         self.lights = []
-		self.waypoints_2d = None
+	self.waypoints_2d = None
         self.waypoints_tree = None
 		
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
@@ -89,7 +90,7 @@ class TLDetector(object):
         return [position.x, position.y]
 
     def waypoints_cb(self, waypoints):
-        self.base_waypoints = waypoints.waypoints
+        self.waypoints = waypoints
         if not self.waypoints_2d:
             self.waypoints_2d = [self.waypoint_xy(waypoint) for waypoint in waypoints.waypoints]
             self.waypoints_tree = KDTree(self.waypoints_2d)
@@ -118,12 +119,12 @@ class TLDetector(object):
             int: index of the closest waypoint in self.waypoints
 
         """
-	closest_idx = self.waypoint_tree.query([pose_x, pose_y], 1)[1]
+	closest_idx = self.waypoints_tree.query([pose_x, pose_y], 1)[1]
 	# closest_waypoint = 999999
 	# closest_idx = -1
 	# #search through waypoints
 	# for i in range(len(self.waypoints.waypoints)):
-		# d_dist = math.sqrt((self.waypoints.waypoints[i].pose.pose.position.x - pose_x)**2 + (
+		# d_dist = math.sqrt((self.waypoints.waypoints[i].pose.pose.position.x - pose_x)**2 + (s
 		    # self.waypoints.waypoints[i].pose.pose.position.y - pose_y)**2)
 		# if (d_dist < closest_waypoint):
 			# closest_waypoint = d_dist
@@ -165,7 +166,7 @@ class TLDetector(object):
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
         if(self.pose):
-			car_wp_idx = self.get_closest_waypoint(self.pose.pose.position.x, self.pose.pose.position.y)
+		car_wp_idx = self.get_closest_waypoint(self.pose.pose.position.x, self.pose.pose.position.y)
 		#print(car_wp_idx)
 		#TODO find the closest visible traffic light (if one exists)
 		diff = len(self.waypoints.waypoints)

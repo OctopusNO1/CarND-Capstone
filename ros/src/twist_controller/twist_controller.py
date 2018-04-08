@@ -34,9 +34,9 @@ class Controller(object):
         throttle_max = 0.5*self.accel_limit
         self.throttle_controller = PID(kp, ki, kd,throttle_min,throttle_max)
 
-        kp_cte = 2.8
-        ki_cte = 0.1
-        kd_cte = 1.4		
+        kp_cte = 0.5
+        ki_cte = 0.0
+        kd_cte = 0.2
         self.cte_controller = PID(kp_cte, ki_cte, kd_cte,-self.max_steer_angle,self.max_steer_angle)		
 			
         tau = 0.5 #cutoff freq
