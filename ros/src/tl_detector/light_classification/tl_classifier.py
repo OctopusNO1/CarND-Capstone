@@ -36,7 +36,7 @@ class TLClassifier(object):
             img_expand = np.expand_dims(image, axis=0)
             (boxes, scores, classes, num_detections) = self.sess.run(
                 [self.boxes, self.scores, self.classes, self.num_detections],
-                feed_dicht={self.image_tensor: img_expand})
+                feed_dict={self.image_tensor: img_expand})
         print("CLASS: ", classes)
         print("SCORE: ", scores)
         return TrafficLight.UNKNOWN
