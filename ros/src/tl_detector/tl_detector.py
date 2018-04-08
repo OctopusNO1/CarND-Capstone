@@ -53,7 +53,7 @@ class TLDetector(object):
         self.state_count = 0
 
         #rospy.spin()
-	self.ros_spin()
+	    self.ros_spin()
 
     def ros_spin(self):
 	rate = rospy.Rate(10)
