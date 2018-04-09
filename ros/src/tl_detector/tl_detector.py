@@ -184,11 +184,11 @@ class TLDetector(object):
 			if d >= 0 and d < diff:
 				diff = d
 				closest_light = light
-				line_wp_idx = temp_wp_idx
+				light_wp_idx = temp_wp_idx
         if closest_light:
 	    state = self.get_light_state(closest_light)
-            #print("Light waypoint Index: ",line_wp_idx, "Traffic Light: ",TrafficLight.RED, state)
-            return line_wp_idx, state
+            #print("Light waypoint Index: ",light_wp_idx, "Traffic Light: ",TrafficLight.RED, state)
+            return light_wp_idx, state
 
         #self.waypoints = None
         return -1, TrafficLight.UNKNOWN
