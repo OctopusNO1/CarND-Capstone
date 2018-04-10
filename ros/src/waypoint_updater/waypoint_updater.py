@@ -25,6 +25,9 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 
 LOOKAHEAD_WPS = 100 # Number of waypoints we will publish. You can change this number
 
+class MotionState():
+    Drive, Stop = range(2)
+
 class WaypointUpdater(object):
 
     def __init__(self):
@@ -45,6 +48,9 @@ class WaypointUpdater(object):
         self.waypoints_tree = None
         self.nearest_light = None
         self.vehicle_velocity = None # in m/s
+
+        self.motion_state = MotionState.Drive
+        self.deceleration_rate = None
 
         self.loop()
 
@@ -85,7 +91,13 @@ class WaypointUpdater(object):
                     end_index = start_index + LOOKAHEAD_WPS
                     lane_waypoints = self.base_waypoints[start_index:end_index]
                     if self.nearest_light and self.nearest_light >= start_index and self.nearest_light <= end_index:
+                        self.motion_state = MotionState.Stop
                         lane_waypoints = self.decelerate(lane_waypoints, start_index)
+                    elif self.motion_state == MotionState.Stop:
+                        # We arrive were previously decelerating/stopped but are
+                        # starting to accelerate/drive again
+                        self.motion_state = MotionState.Drive
+                        self.deceleration_rate = None
                     lane = Lane()
                     lane.waypoints = lane_waypoints
                     self.final_waypoints_pub.publish(lane)
@@ -94,21 +106,23 @@ class WaypointUpdater(object):
     def decelerate(self, waypoints, start_index):
         stop_index = self.nearest_light - start_index - 2 # So that car doesn't stop on line
         processed_waypoints = []
-        deceleration_rate = None
         speed = self.vehicle_velocity
         for i, waypoint in enumerate(waypoints):
             p = Waypoint()
             p.pose = waypoint.pose
+
+            distance = self.distance(waypoints, i, stop_index)
             if i >= stop_index:
                 target_speed = 0
-            else:
-                distance = self.distance(waypoints, i, stop_index)
-                if not deceleration_rate:
-                    deceleration_rate = self.vehicle_velocity / distance
-                target_speed = deceleration_rate * distance
+            elif distance < 15:
+                if not self.deceleration_rate:
+                    self.deceleration_rate = p.twist.twist.linear.x / distance
+                target_speed = self.deceleration_rate * distance
                 if target_speed <= 1:
                     target_speed = 0
                 target_speed = min(target_speed, self.get_waypoint_velocity(waypoint))
+            else:
+                target_speed = self.get_waypoint_velocity(waypoint)
             p.twist.twist.linear.x = target_speed
             processed_waypoints.append(p)
         return processed_waypoints
