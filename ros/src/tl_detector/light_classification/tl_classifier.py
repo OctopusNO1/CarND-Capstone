@@ -2,17 +2,20 @@ from styx_msgs.msg import TrafficLight
 import tensorflow as tf
 import numpy as np
 
+PATH_TO_GRAPH = r'light_classification/model/frozen_inference_graph.pb'
+
 
 class TLClassifier(object):
     def __init__(self):
-        PATH_TO_GRAPH = r'light_classification/model/frozen_inference_graph.pb'
         self.graph = tf.Graph()
+        self.threshold = .5
 
         with self.graph.as_default():
-            with tf.gfile.FastGFile(PATH_TO_GRAPH, 'rb') as fid:
-                graph_def = tf.GraphDef()
-                graph_def.ParseFromString(fid.read())
-                tf.import_graph_def(graph_def, name='')
+            od_graph_def = tf.GraphDef()
+            with tf.gfile.GFile(PATH_TO_GRAPH, 'rb') as fid:
+                od_graph_def.ParseFromString(fid.read())
+                tf.import_graph_def(od_graph_def, name='')
+
             self.image_tensor = self.graph.get_tensor_by_name('image_tensor:0')
             self.boxes = self.graph.get_tensor_by_name('detection_boxes:0')
             self.scores = self.graph.get_tensor_by_name('detection_scores:0')
@@ -37,6 +40,23 @@ class TLClassifier(object):
             (boxes, scores, classes, num_detections) = self.sess.run(
                 [self.boxes, self.scores, self.classes, self.num_detections],
                 feed_dict={self.image_tensor: img_expand})
-        print("CLASS: ", classes)
-        print("SCORE: ", scores)
+
+        boxes = np.squeeze(boxes)
+        scores = np.squeeze(scores)
+        classes = np.squeeze(classes).astype(np.int32)
+
+        print('SCORES: ', scores[0])
+        print('CLASSES: ', classes[0])
+
+        if scores[0] > self.threshold:
+            if classes[0] == 1:
+                print('GREEN')
+                return TrafficLight.GREEN
+            elif classes[0] == 2:
+                print('RED')
+                return TrafficLight.RED
+            elif classes[0] == 3:
+                print('YELLOW')
+                return TrafficLight.YELLOW:
+
         return TrafficLight.UNKNOWN
