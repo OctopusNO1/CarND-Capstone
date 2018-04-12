@@ -57,6 +57,6 @@ class TLClassifier(object):
                 return TrafficLight.RED
             elif classes[0] == 3:
                 print('YELLOW')
-                return TrafficLight.YELLOW:
+                return TrafficLight.YELLOW
 
         return TrafficLight.UNKNOWN
