@@ -13,7 +13,7 @@ import yaml
 import math
 from scipy.spatial import KDTree
 
-STATE_COUNT_THRESHOLD = 3
+STATE_COUNT_THRESHOLD =  3
 
 
 class TLDetector(object):
@@ -110,7 +110,8 @@ class TLDetector(object):
         """
         self.has_image = True
         self.camera_image = msg
-        light_wp, state = self.process_traffic_lights()
+      	#Commented out to test for lag
+	#light_wp, state = self.process_traffic_lights()
 
     def get_closest_waypoint(self, pose_x, pose_y):
         """Identifies the closest path waypoint to the given position
@@ -121,17 +122,8 @@ class TLDetector(object):
             int: index of the closest waypoint in self.waypoints
 
         """
+	#Use KDTree to search through waypoints
 	closest_idx = self.waypoints_tree.query([pose_x, pose_y], 1)[1]
-	# closest_waypoint = 999999
-	# closest_idx = -1
-	# #search through waypoints
-	# for i in range(len(self.waypoints.waypoints)):
-		# d_dist = math.sqrt((self.waypoints.waypoints[i].pose.pose.position.x - pose_x)**2 + (s
-		    # self.waypoints.waypoints[i].pose.pose.position.y - pose_y)**2)
-		# if (d_dist < closest_waypoint):
-			# closest_waypoint = d_dist
-			# closest_idx = i
-
 	return closest_idx
 
     def get_light_state(self, light):

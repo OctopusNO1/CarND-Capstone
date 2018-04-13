@@ -80,7 +80,7 @@ class WaypointUpdater(object):
 
     # This is our main loop which is run at a set interval
     def loop(self):
-        rate = rospy.Rate(50)
+        rate = rospy.Rate(10)
         while not rospy.is_shutdown():
             if self.vehicle and self.waypoints_tree and self.vehicle_velocity:
                 # If you turn around around in the simulator all the waypoint can end
