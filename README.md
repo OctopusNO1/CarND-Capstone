@@ -15,44 +15,45 @@ the waypoints with the target velocity.
 #### Waypoint Updater
 
 The waypoint updater determines the nearest waypoints ahead of the vehicle and
-the desired speed to be traveling at each waypoint. At startup a list of known
+the desired speed to be traveling at each waypoint.  At startup a list of known
 waypoints is received and stored in a KD-Tree for efficient lookup of the
-nearest waypoint to the vehicle. Every 0.1 seconds the following tasks are
+nearest waypoint to the vehicle.  Every 0.1 seconds the following tasks are
 performed.
 
-1. Find the nearest `n` waypoints ahead of the vehicle where `n` is defined as
-a set number of waypoints
+1.  Find the nearest `n` waypoints ahead of the vehicle where `n` is defined as
+a set number of waypoints.
 
-2. Determine if a red traffic light falls in the range of waypoints ahead of
-the traffic light
+2.  Determine if a red traffic light falls in the range of waypoints ahead of
+the traffic light.
 
-3. Calculate target velocities for each waypoint
+3.  Calculate target velocities for each waypoint.
 
-4. Publish the target waypoints with velocities to the `final_waypoints` topic
+4.  Publish the target waypoints with velocities to the `final_waypoints`
+topic.
 
 If a red traffic light does not fall in the look ahead range the velocities
-provided by the waypoint loader are used. When a red traffic light is present,
+provided by the waypoint loader are used.  When a red traffic light is present,
 velocities are calculated to perform a linear deceleration such that the
-vehicle will stop at the waypoint nearest the traffic light.
+vehicle will stop at the waypoint closest to the traffic light.
 
-After our initial implementation two changes were made to improve the
-deceleration behavior:
+After we completed our initial implementation, we made two changes to improve
+the deceleration behavior:
 
-1. Initially the deceleration was calculated from the vehicles current position
-when a red light was detected ahead. But, since 100 waypoints were being
-considered the vehicle was often far away from the light when it would start
-decelerating. To fix this, deceleration velocities were only calculated for
-waypoints less than 15 meters from the red light.
+1.  Initially, we calculated the deceleration starting from the vehicle's
+current position as soon as a red light was detected.  However, since we
+consider 100 waypoints the vehicle was often far away from the light when it
+started to decelerate.  We changed to the code to start decelerating only when
+the car was less than 15 meters away from the red light.
 
-2. The vehicle would stop short of the target "stopping" waypoint. This
+2. The vehicle would stop short of the target "stopping" waypoint.  This
 happened because the waypoint velocities were recalculated every 0.1 seconds
-based on the current velocity of the vehicle. Often the throttle controller
+based on the current velocity of the vehicle.  Often the throttle controller
 would decelerate a little faster than it should, causing the waypoint updater
 to set slower target velocities each time it performed the velocity
-calculations causing a positive feedback loop. To solve this problem a state
-machine was introduced. When the driving state transitioned from normal driving
-to breaking a deceleration rate was calculated and used until a transition back
-to the driving state occurred.
+calculations causing a positive feedback loop.  To solve this problem we
+introduced a state machine.  When the state transitioned from "driving" to
+"breaking" a deceleration rate is calculated and used until a transition back
+to the "driving" state occurres.
 
 ### Initial README
 
