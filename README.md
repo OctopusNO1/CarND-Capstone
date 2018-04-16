@@ -1,18 +1,47 @@
-### Project Description
+## Term 3: Capstone Project : System Integrations
+[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 
 In this project we develop a system which integrates multiple components to
-drive Carla, the Uadacity self-driving car, around a test track.
+drive Carla, the Udacity self-driving car, around a test track.
 
-The perception subsystem detects traffic lights and obstacles.
-https://github.com/alex-lechner/Traffic-Light-Classification
+## Project Team Members of Drive Safely
+|  Name                                   | Udacity Account Email Address     |
+|:---------------------------------------:|:---------------------------------:|
+| Christoph Albrecht                      |   christoph.albrecht@gmail.com    |
+| Alexander Lechner                       |   alexanderlechner7@gmail.com     |
+| Ian Burris                              |   ian.burris@gmail.com            |
+| Chongyou Ma                             |   chongyou.ma@gmail.com           |
+| Clifton Pereira                         |   pereiraclifton@gmail.com        |
 
-The planning subsystem (node waypoint updater) updates the waypoints and the
+
+[//]: # (Image References)
+
+[image1]: ./imgs/final-project-ros-graph-v2.png "Carla's System Architecture"
+
+## System Architecture
+Carla's system can be broken down into three main parts:
+- The perception subsystem detects traffic lights and obstacles.
+- The planning subsystem (node waypoint updater) updates the waypoints and the
 associated target velocities.
-
-The control subsystem actuates the throttle, steering, and brake to navigate
+- The control subsystem actuates the throttle, steering, and brake to navigate
 the waypoints with the target velocity.
 
-#### Waypoint Updater
+![alt text][image1]
+
+### Traffic Detection (aka. tl_detector node)
+The traffic light detector node which operates at 10Hz has 4 main tasks:
+1. Find the closest waypoint to the position of the car
+2. Find the closest traffic light to the car's position 
+3. Find the state of the traffic light
+4. If the closest light is red, publish its waypoint to the /traffic_waypoint topic
+
+From the topic /base_waypoints, on start-up the waypoints are stored into a KD-Tree. This is used to find the closest waypoint to either the car's position or a traffic light in question. Once the waypoints for both the car's position and the traffic lights are known, it is only a matter of iterating over the waypoints to find the closest traffic light waypoint. 
+
+After we find the closest traffic light, we can quantify the lights state using a classifier. See the following link for details on the traffic light classifier and training. https://github.com/alex-lechner/Traffic-Light-Classification
+
+If the closest (in front) traffic light is classified as "RED" three consecutive times it is published to the topic /traffic_waypoint.
+
+#### Waypoint Updater (a.k.a waypoint_updater node)
 
 The waypoint updater determines the nearest waypoints ahead of the vehicle and
 the desired speed to be traveling at each waypoint.  At startup a list of known
