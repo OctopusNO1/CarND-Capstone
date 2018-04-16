@@ -41,7 +41,7 @@ After we find the closest traffic light, we can quantify the lights state using 
 
 If the closest (in front) traffic light is classified as "RED" three consecutive times it is published to the topic /traffic_waypoint.
 
-#### Waypoint Updater (a.k.a waypoint_updater node)
+### Waypoint Updater (a.k.a waypoint_updater node)
 
 The waypoint updater determines the nearest waypoints ahead of the vehicle and
 the desired speed to be traveling at each waypoint.  At startup a list of known
