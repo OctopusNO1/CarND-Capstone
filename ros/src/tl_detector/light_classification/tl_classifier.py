@@ -2,11 +2,15 @@ from styx_msgs.msg import TrafficLight
 import tensorflow as tf
 import numpy as np
 
-PATH_TO_GRAPH = r'light_classification/model/frozen_inference_graph.pb'
-
 
 class TLClassifier(object):
-    def __init__(self):
+    def __init__(self, is_sim):
+
+        if is_sim:
+            PATH_TO_GRAPH = r'light_classification/model/ssd_sim/frozen_inference_graph.pb'
+        else:
+            PATH_TO_GRAPH = r'light_classification/model/ssd_udacity/frozen_inference_graph.pb'
+
         self.graph = tf.Graph()
         self.threshold = .5
 
@@ -45,8 +49,8 @@ class TLClassifier(object):
         scores = np.squeeze(scores)
         classes = np.squeeze(classes).astype(np.int32)
 
-        print('SCORES: ', scores[0])
-        print('CLASSES: ', classes[0])
+        # print('SCORES: ', scores[0])
+        # print('CLASSES: ', classes[0])
 
         if scores[0] > self.threshold:
             if classes[0] == 1:
