@@ -51,6 +51,9 @@ class WaypointUpdater(object):
 
         self.motion_state = MotionState.Drive
         self.deceleration_rate = None
+        self.acceleration_rate = 0.75 # m/s
+
+        self.previous_velocity = None
 
         self.loop()
 
@@ -69,7 +72,10 @@ class WaypointUpdater(object):
             self.waypoints_tree = KDTree(self.waypoints_2d)
 
     def traffic_cb(self, msg):
-        self.nearest_light = msg.data
+        if (msg.data == -1):
+            self.nearest_light = None
+        else:
+            self.nearest_light = msg.data
 
     def velocity_cb(self, velocity):
         self.vehicle_velocity = velocity.twist.linear.x
@@ -90,7 +96,7 @@ class WaypointUpdater(object):
                 if start_index is not None:
                     end_index = start_index + LOOKAHEAD_WPS
                     lane_waypoints = self.base_waypoints[start_index:end_index]
-                    if self.nearest_light and self.nearest_light >= start_index and self.nearest_light <= end_index:
+                    if self.nearest_light != None and self.nearest_light >= start_index and self.nearest_light <= end_index:
                         self.motion_state = MotionState.Stop
                         lane_waypoints = self.decelerate(lane_waypoints, start_index)
                     elif self.motion_state == MotionState.Stop:
@@ -98,10 +104,36 @@ class WaypointUpdater(object):
                         # starting to accelerate/drive again
                         self.motion_state = MotionState.Drive
                         self.deceleration_rate = None
+
+                    if self.motion_state == MotionState.Drive:
+                        if abs(self.vehicle_velocity - self.get_waypoint_velocity(lane_waypoints[0])) > 1.0:
+                            start_velocity = max(self.previous_velocity+0.2, self.vehicle_velocity)
+                            lane_waypoints = self.accelerate(lane_waypoints, start_velocity)
+                        else:
+                            self.acceleration_start_velocity = None
+
                     lane = Lane()
                     lane.waypoints = lane_waypoints
+
                     self.final_waypoints_pub.publish(lane)
+            self.previous_velocity = self.vehicle_velocity
             rate.sleep()
+
+    def accelerate(self, waypoints, start_velocity):
+        processed_waypoints = []
+        for i, waypoint in enumerate(waypoints):
+            p = Waypoint()
+            p.pose = waypoint.pose
+
+            distance = self.distance(waypoints, 0, i)
+            target_speed = start_velocity + distance * self.acceleration_rate
+            if target_speed < 0.5:
+                target_speed = 0.5
+
+            target_speed = min(target_speed, self.get_waypoint_velocity(waypoint))
+            p.twist.twist.linear.x = target_speed
+            processed_waypoints.append(p)
+        return processed_waypoints
 
     def decelerate(self, waypoints, start_index):
         stop_index = self.nearest_light - start_index - 2 # So that car doesn't stop on line
@@ -115,8 +147,8 @@ class WaypointUpdater(object):
             if i >= stop_index:
                 target_speed = 0
             elif distance < 15:
-                if not self.deceleration_rate:
-                    self.deceleration_rate = p.twist.twist.linear.x / distance
+                if self.deceleration_rate == None:
+                    self.deceleration_rate = self.vehicle_velocity / distance
                 target_speed = self.deceleration_rate * distance
                 if target_speed <= 1:
                     target_speed = 0
