@@ -107,7 +107,10 @@ class WaypointUpdater(object):
 
                     if self.motion_state == MotionState.Drive:
                         if abs(self.vehicle_velocity - self.get_waypoint_velocity(lane_waypoints[0])) > 1.0:
-                            start_velocity = max(self.previous_velocity+0.2, self.vehicle_velocity)
+                            if self.previous_velocity == None:
+                                start_velocity = self.vehicle_velocity
+                            else:
+                                start_velocity = max(self.previous_velocity+0.2, self.vehicle_velocity)
                             lane_waypoints = self.accelerate(lane_waypoints, start_velocity)
                         else:
                             self.acceleration_start_velocity = None
